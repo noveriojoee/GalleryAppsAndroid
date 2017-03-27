@@ -1,10 +1,15 @@
 package com.galleryapp.gid.views;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.provider.MediaStore;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -13,6 +18,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.galleryapp.gid.Config.Config;
 import com.galleryapp.gid.gidgalleryapp.R;
 import com.galleryapp.gid.views.ImageSaveActivityFragments.ImageInfoFragmentPage;
 import com.google.android.gms.common.ConnectionResult;
@@ -54,29 +60,30 @@ public class MyLocationActivity extends AppCompatActivity implements LocationLis
         setContentView(R.layout.activity_my_location);
         this.InitializeVariable();
 
-        //Creating google api client initialization begin
-        this.mGoogleApiClient = new GoogleApiClient.Builder(this)
-                .addApi(LocationServices.API)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this).build();
-        //Creating google api client initialization end
-
     }
 
     protected void onStart() {
         super.onStart();
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            this.askForPermission(Manifest.permission.ACCESS_FINE_LOCATION, Config.PERMISSION_LOCATION);
+        }
+        else{
+            this.askingGPSLocation();
+        }
         // Connect the client.
-        mGoogleApiClient.connect();
     }
 
     protected void onStop() {
         // Disconnecting the client invalidates it.
-        LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
 
-        // only stop if it's connected, otherwise we crash
-        if (mGoogleApiClient != null) {
-            mGoogleApiClient.disconnect();
+            // only stop if it's connected, otherwise we crash
+            if (mGoogleApiClient != null) {
+                mGoogleApiClient.disconnect();
+            }
         }
+
         super.onStop();
     }
 
@@ -165,5 +172,48 @@ public class MyLocationActivity extends AppCompatActivity implements LocationLis
         this.etLattitude.setText(Double.toString(this.currentLatitude));
         this.etLongitude.setText(Double.toString(this.currentLongitude));
         this.etAccuracy.setText(Float.toString(this.currentAccuracy));
+    }
+
+    //Implements Asking for permissions runtime.
+    private void askForPermission(String permission, Integer requestCode) {
+        if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+
+            // Should we show an explanation?
+            if (ActivityCompat.shouldShowRequestPermissionRationale(MyLocationActivity.this, permission)) {
+
+                //This is called if user has denied the permission before
+                //In this case I am just asking the permission again
+                ActivityCompat.requestPermissions(MyLocationActivity.this, new String[]{permission}, requestCode);
+
+            } else {
+                ActivityCompat.requestPermissions(MyLocationActivity.this, new String[]{permission}, requestCode);
+            }
+        } else {
+            Toast.makeText(this, "" + permission + " is already granted.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void askingGPSLocation(){
+        this.mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addApi(LocationServices.API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this).build();
+        mGoogleApiClient.connect();
+    }
+
+    //Implements onPermissions Request Result
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(ActivityCompat.checkSelfPermission(this, permissions[0]) == PackageManager.PERMISSION_GRANTED){
+            switch (requestCode) {
+                case 1:
+                    this.askingGPSLocation();
+                    break;
+            }
+            Toast.makeText(this, "Permission granted", Toast.LENGTH_SHORT).show();
+        }else{
+            Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show();
+        }
     }
 }
